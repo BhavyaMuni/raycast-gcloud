@@ -22,8 +22,6 @@ export default function Command() {
 
   const [serviceId, setServiceId] = useState<string>("");
 
-  const servicesExec = useExec(gcloudPath, ["run", "services", "list", "--format=json"], { initialData: "[]" });
-
   const revisionsExec = useExec(
     gcloudPath,
     [
@@ -36,11 +34,37 @@ export default function Command() {
       `${region ? "--region=" + region : ""}`,
       "--format=json",
     ],
-    { initialData: "[]" },
+    { initialData: "[]", execute: false },
   );
+  const servicesExec = useExec(gcloudPath, ["run", "services", "list", "--format=json"], {
+    initialData: "[]",
+    execute: false,
+    onError: () => {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "Error fetching services",
+        message: "Please ensure you have the correct permissions to list services.",
+      });
+    },
+  });
 
-  const services = useMemo<Service[]>(() => JSON.parse(servicesExec.data || "{}") || [], [servicesExec.data]);
-  const revisions = useMemo<Revision[]>(() => JSON.parse(revisionsExec.data || "{}") || [], [revisionsExec.data]);
+  useExec(gcloudPath, ["--version"], {
+    execute: true,
+    onError: () => {
+      showToast({
+        style: Toast.Style.Failure,
+        title: "gcloud CLI Path Error",
+        message: "Please install Google Cloud CLI and check your gcloud CLI path in preferences.",
+      });
+    },
+    onData: () => {
+      servicesExec.revalidate();
+      revisionsExec.revalidate();
+    },
+  });
+
+  const services = useMemo<Service[]>(() => JSON.parse(servicesExec.data || "{}"), [servicesExec.data]);
+  const revisions = useMemo<Revision[]>(() => JSON.parse(revisionsExec.data || "{}"), [revisionsExec.data]);
 
   const getService = (serviceId: string) => {
     return services.find((s) => s.metadata.name === serviceId);
@@ -52,7 +76,12 @@ export default function Command() {
   };
 
   const ServicesDropdown = (
-    <List.Dropdown tooltip="Select service" storeValue={true} onChange={(value) => setServiceId(value)}>
+    <List.Dropdown
+      isLoading={servicesExec.isLoading}
+      tooltip="Select service"
+      storeValue={true}
+      onChange={(value) => setServiceId(value)}
+    >
       <List.Dropdown.Section title="Services">
         {services.map((s) => (
           <List.Dropdown.Item key={s.metadata.name} title={s.metadata.name} value={s.metadata.name} />
@@ -62,7 +91,7 @@ export default function Command() {
   );
 
   return (
-    <List isLoading={revisionsExec.isLoading} searchBarAccessory={ServicesDropdown}>
+    <List isLoading={revisionsExec.isLoading || servicesExec.isLoading} searchBarAccessory={ServicesDropdown}>
       {revisions.map((r) => {
         const rName = r.metadata.name;
         const currentTraffic = getTraffic(rName);
