@@ -91,7 +91,11 @@ export default function Command() {
   );
 
   return (
-    <List isLoading={revisionsExec.isLoading || servicesExec.isLoading} searchBarAccessory={ServicesDropdown}>
+    <List
+      isLoading={revisionsExec.isLoading || servicesExec.isLoading}
+      searchBarAccessory={ServicesDropdown}
+      searchBarPlaceholder="Search revisions..."
+    >
       {revisions.map((r) => {
         const rName = r.metadata.name;
         const currentTraffic = getTraffic(rName);

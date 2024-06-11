@@ -46,7 +46,8 @@
       "name": "gcloud-path",
       "required": true,
       "type": "textfield",
-      "description": "Path to the Google Cloud CLI"
+      "description": "Path to the Google Cloud CLI",
+      "placeholder": "/opt/homebrew/bin/gcloud"
     },
     {
       "title": "Google Cloud Run Region",
