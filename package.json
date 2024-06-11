@@ -5,7 +5,6 @@
   "description": "Commands for Google Cloud Run",
   "icon": "command-icon.png",
   "author": "bhavya_muni",
-  "owner": "bhavyamuni",
   "categories": [
     "Developer Tools",
     "Applications"
