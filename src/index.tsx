@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 
 interface Service {
   metadata: { name: string };
-  status: { traffic: [{ revisionName: string; tag?: string; url: string; percent?: number }] };
 }
-
+interface Traffic {
+  status: { traffic: [{ revisionName?: string; tag?: string; url?: string; percent?: number }] };
+}
 interface Revision {
   metadata: { name: string };
 }
@@ -17,12 +18,12 @@ export default function Command() {
 
   const [serviceId, setServiceId] = useState<string>("");
   const [revisions, setRevisions] = useState<Revision[]>([]);
+  const [traffics, setTraffics] = useState<Traffic>();
 
   //   const revisions = useMemo<Revision[]>(() => JSON.parse(revisionsExec.data || "{}"), [revisionsExec.data]);
 
-  const servicesExec = useExec(gcloudPath, ["run", "services", "list", "--format=json"], {
+  const servicesExec = useExec(gcloudPath, ["run", "services", "list", "--format=json(metadata.name)"], {
     initialData: "[]",
-    execute: false,
     onError: () => {
       showToast({
         style: Toast.Style.Failure,
@@ -31,6 +32,14 @@ export default function Command() {
       });
     },
   });
+
+  useExec(
+    gcloudPath,
+    ["run", "services", "describe", `${serviceId}`, `${region ? "--region=" + region : ""}`, "--format=json"],
+    {
+      onData: (data) => setTraffics(JSON.parse(data)),
+    },
+  );
 
   const revisionsExec = useExec(
     gcloudPath,
@@ -56,14 +65,11 @@ export default function Command() {
       },
     },
   );
+
   const services = useMemo<Service[]>(() => JSON.parse(servicesExec.data || "{}"), [servicesExec.data]);
 
-  const getService = (serviceId: string) => {
-    return services.find((s) => s.metadata.name === serviceId);
-  };
-
   const getTraffic = (revisionName: string) => {
-    const tr = getService(serviceId)?.status.traffic;
+    const tr = traffics?.status.traffic;
     const revision = tr?.find((t) => t.revisionName === revisionName);
     return revision;
   };
