@@ -2,6 +2,8 @@
 
 This Raycast extension allows you to manage Google Cloud Run services directly from your Raycast dashboard. With this extension, you can easily migrate traffic for your Cloud Run services to specific revisions, streamlining your deployment workflows.
 
+![setup](metadata/google-cloud-run-1.png)
+
 ## 📋 Prerequisites
 Before configuring this extension, ensure you have the Google Cloud CLI installed and configured. Use the following command to authenticate your Google Cloud account:
 ```sh
