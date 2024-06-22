@@ -4,8 +4,6 @@ import { useMemo, useState } from "react";
 
 interface Service {
   metadata: { name: string };
-}
-interface Traffic {
   status: { traffic: [{ revisionName?: string; tag?: string; url?: string; percent?: number }] };
 }
 interface Revision {
@@ -18,26 +16,22 @@ export default function Command() {
 
   const [serviceId, setServiceId] = useState<string>("");
   const [revisions, setRevisions] = useState<Revision[]>([]);
-  const [traffics, setTraffics] = useState<Traffic>();
 
   //   const revisions = useMemo<Revision[]>(() => JSON.parse(revisionsExec.data || "{}"), [revisionsExec.data]);
 
-  const servicesExec = useExec(gcloudPath, ["run", "services", "list", "--format=json(metadata.name)"], {
-    initialData: "[]",
-    onError: () => {
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Error fetching services",
-        message: "Please ensure you have the correct permissions to list services.",
-      });
-    },
-  });
-
-  useExec(
+  const servicesExec = useExec(
     gcloudPath,
-    ["run", "services", "describe", `${serviceId}`, `${region ? "--region=" + region : ""}`, "--format=json"],
+    ["run", "services", "list", "--format=json(metadata.name, status.traffic)"],
     {
-      onData: (data) => setTraffics(JSON.parse(data)),
+      keepPreviousData: true,
+      initialData: "[]",
+      onError: () => {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Error fetching services",
+          message: "Please ensure you have the correct permissions to list services.",
+        });
+      },
     },
   );
 
@@ -54,6 +48,7 @@ export default function Command() {
       "--format=json",
     ],
     {
+      keepPreviousData: true,
       initialData: "[]",
       onData: (data) => setRevisions(JSON.parse(data)),
       onError: () => {
@@ -69,7 +64,7 @@ export default function Command() {
   const services = useMemo<Service[]>(() => JSON.parse(servicesExec.data || "{}"), [servicesExec.data]);
 
   const getTraffic = (revisionName: string) => {
-    const tr = traffics?.status.traffic;
+    const tr = services.find((s) => s.metadata.name === serviceId)?.status.traffic;
     const revision = tr?.find((t) => t.revisionName === revisionName);
     return revision;
   };
@@ -89,6 +84,12 @@ export default function Command() {
     </List.Dropdown>
   );
 
+  const getIcon = (currentTraffic?: { revisionName?: string; tag?: string; url?: string; percent?: number }) => {
+    if (!currentTraffic) return Icon.Xmark;
+    if (currentTraffic.percent === 100) return greenCheckmark;
+    return Icon.Checkmark;
+  };
+
   return (
     <List
       isLoading={revisionsExec.isLoading || servicesExec.isLoading}
@@ -100,11 +101,11 @@ export default function Command() {
         const currentTraffic = getTraffic(rName);
         return (
           <List.Item
-            icon={!currentTraffic ? Icon.Xmark : currentTraffic.percent === 100 ? greenCheckmark : Icon.Checkmark}
+            icon={getIcon(currentTraffic)}
             key={rName}
             title={rName}
             accessories={[{ tag: currentTraffic?.tag ?? "" }]}
-            actions={<ListActions newRevision={rName} serviceId={serviceId} />}
+            actions={<ListActions newRevision={rName} serviceId={serviceId} revalTraffic={servicesExec.revalidate} />}
           />
         );
       })}
@@ -112,7 +113,7 @@ export default function Command() {
   );
 }
 
-function ListActions(props: Readonly<{ newRevision: string; serviceId: string }>) {
+function ListActions(props: Readonly<{ newRevision: string; serviceId: string; revalTraffic: () => void }>) {
   const { gcloudPath, region } = getPreferenceValues<Preferences>();
   const { revalidate } = useExec(
     gcloudPath,
@@ -134,6 +135,7 @@ function ListActions(props: Readonly<{ newRevision: string; serviceId: string }>
     await revalidate();
     toast.style = Toast.Style.Success;
     toast.title = "Migrated traffic to revision";
+    props.revalTraffic();
   };
 
   return (
